@@ -1,0 +1,12 @@
+{
+  "name": "servpro-invoice-audit",
+  "version": "4.0.0",
+  "description": "SERVPRO Invoice Audit Control Panel – configures and generates prompts for browser automation against the Dash ERP system",
+  "private": true,
+  "scripts": {
+    "start": "npx serve src",
+    "dev": "npx serve src --listen 3000"
+  },
+  "keywords": ["servpro", "invoice", "audit", "automation", "dash"],
+  "license": "UNLICENSED"
+}
