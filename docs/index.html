@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SERVPRO Invoice Audit – Control Panel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: #2a2f45;
+    --accent: #ff6b2b;
+    --accent2: #ffaa00;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --label: #9ba3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+  .header-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .header-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding-bottom: 6px;
+  }
+  .version-badge {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    background: var(--accent);
+    color: #000;
+    padding: 4px 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  /* LAYOUT */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .full { grid-column: 1 / -1; }
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+  }
+  .card-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 12px;
+    background: var(--accent);
+  }
+  /* FORM ELEMENTS */
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--label);
+    margin-bottom: 6px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+  select, input[type="number"], input[type="text"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+  }
+  select:focus, input:focus {
+    border-color: var(--accent);
+  }
+  select option { background: var(--surface2); }
+  /* TOGGLE SWITCHES */
+  .toggle-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .toggle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .toggle-item:hover { border-color: var(--accent); }
+  .toggle-item.active { border-color: var(--green); }
+  .toggle-item.inactive { border-color: var(--border); opacity: 0.5; }
+  .toggle-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+  .toggle-switch {
+    width: 36px;
+    height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: left 0.2s;
+  }
+  .toggle-item.active .toggle-switch { background: var(--green); }
+  .toggle-item.active .toggle-switch::after { left: 19px; }
+  /* DIVISION EXCLUSIONS */
+  .division-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .tag.excluded {
+    border-color: var(--red);
+    background: rgba(231, 76, 60, 0.1);
+    color: var(--red);
+  }
+  .tag.excluded::before { content: '✕ '; }
+  /* RATIO SLIDER */
+  .ratio-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    color: var(--accent2);
+    line-height: 1;
+    margin: 8px 0 4px;
+  }
+  .ratio-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent2);
+    height: 4px;
+    cursor: pointer;
+  }
+  .ratio-markers {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  /* CAP DISPLAY */
+  .cap-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    color: var(--accent);
+    line-height: 1;
+    margin: 8px 0 4px;
+  }
+  .cap-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .cap-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .preset-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--label);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover, .preset-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(255,107,43,0.08);
+  }
+  /* PROMPT OUTPUT */
+  .prompt-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #a8b4cc;
+    white-space: pre-wrap;
+    max-height: 280px;
+    overflow-y: auto;
+    position: relative;
+  }
+  .prompt-box::-webkit-scrollbar { width: 4px; }
+  .prompt-box::-webkit-scrollbar-track { background: var(--surface); }
+  .prompt-box::-webkit-scrollbar-thumb { background: var(--border); }
+  /* BUTTONS */
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    flex: 1;
+  }
+  .btn-primary:hover { background: #ff8450; }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--label);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-copy {
+    background: var(--green);
+    color: #000;
+  }
+  .btn-copy:hover { background: #27ae60; }
+  /* COPY FEEDBACK */
+  .copy-feedback {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.3s;
+    margin-left: 8px;
+  }
+  .copy-feedback.show { opacity: 1; }
+  /* STATUS BAR */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    margin-bottom: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  /* HIGHLIGHT in prompt */
+  .hl-orange { color: var(--accent); font-weight: 600; }
+  .hl-yellow { color: var(--accent2); font-weight: 600; }
+  .hl-green { color: var(--green); font-weight: 600; }
+  /* SECTION DIVIDER */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 8px 0;
+  }
+  /* VERSION HISTORY */
+  .version-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .version-row:last-child { border-bottom: none; }
+  .v-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .v-badge.current {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="header-logo">INVOICE AUDIT</div>
+    <div class="header-sub">SERVPRO Automation Control Panel</div>
+  </div>
+  <div class="version-badge">V4.0</div>
+</div>
+<div class="status-bar">
+  <div class="status-dot"></div>
+  <span>READY TO CONFIGURE</span>
+  <span style="margin-left:auto">Configure settings below → Generate Prompt → Paste into Claude in Chrome</span>
+</div>
+<!-- ROW 1: Office + Cap + Ratio -->
+<div class="grid-3">
+  <div class="card">
+    <div class="card-title">Office Target</div>
+    <label>Select Office</label>
+    <select id="office">
+      <option value="SERVPRO of Northeast Dallas">SERVPRO of Northeast Dallas</option>
+      <option value="SERVPRO Boise">SERVPRO Boise</option>
+      <option value="SERVPRO of McCall">SERVPRO of McCall</option>
+      <option value="SERVPRO of Reno">SERVPRO of Reno</option>
+      <option value="All Offices">All Offices</option>
+    </select>
+    <div style="margin-top:10px; font-size:11px; color:var(--muted); font-family:'IBM Plex Mono',monospace;">
+      "All Offices" runs each office sequentially using a shared update cap.
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Update Cap</div>
+    <div class="cap-display" id="cap-display">15</div>
+    <div class="cap-desc">Max job updates per run</div>
+    <input type="range" id="cap-slider" min="1" max="100" value="15"
+      oninput="updateCap(this.value)">
+    <div class="ratio-markers"><span>1</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+    <div class="cap-presets">
+      <button class="preset-btn active" onclick="setCap(15, this)">15</button>
+      <button class="preset-btn" onclick="setCap(25, this)">25</button>
+      <button class="preset-btn" onclick="setCap(50, this)">50</button>
+      <button class="preset-btn" onclick="setCap(100, this)">100</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Ratio Threshold</div>
+    <div class="ratio-display" id="ratio-display">60%</div>
+    <div class="ratio-desc">Min Invoice / Estimate ratio to qualify</div>
+    <input type="range" id="ratio-slider" min="1" max="100" value="60"
+      oninput="updateRatio(this.value)">
+    <div class="ratio-markers"><span>1%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+  </div>
+</div>
+<!-- ROW 2: Phases + Divisions -->
+<div class="grid">
+  <div class="card">
+    <div class="card-title">Phases to Run</div>
+    <div class="toggle-group" id="phases">
+      <div class="toggle-item active" onclick="togglePhase(this)" data-phase="Invoice Pending">
+        <span class="toggle-label">Invoice Pending</span>
+        <div class="toggle-switch"></div>
+      </div>
+      <div class="toggle-item active" onclick="togglePhase(this)" data-phase="Completed – No Paperwork">
+        <span class="toggle-label">Completed – No Paperwork</span>
+        <div class="toggle-switch"></div>
+      </div>
+      <div class="toggle-item active" onclick="togglePhase(this)" data-phase="Work In Progress">
+        <span class="toggle-label">Work In Progress</span>
+        <div class="toggle-switch"></div>
+      </div>
+      <div class="toggle-item active" onclick="togglePhase(this)" data-phase="Pre Production">
+        <span class="toggle-label">Pre Production</span>
+        <div class="toggle-switch"></div>
+      </div>
+      <div class="toggle-item active" onclick="togglePhase(this)" data-phase="Pending Sales">
+        <span class="toggle-label">Pending Sales</span>
+        <div class="toggle-switch"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Division Exclusions</div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:12px;">
+      Click a division to toggle exclusion. <span style="color:var(--red)">Red = excluded.</span>
+    </div>
+    <div class="division-tags" id="divisions">
+      <div class="tag excluded" onclick="toggleDivision(this)">Recon 2.0</div>
+      <div class="tag excluded" onclick="toggleDivision(this)">Recon 3.0</div>
+      <div class="tag" onclick="toggleDivision(this)">Contents</div>
+      <div class="tag" onclick="toggleDivision(this)">Mitigation</div>
+      <div class="tag" onclick="toggleDivision(this)">Abatement</div>
+      <div class="tag" onclick="toggleDivision(this)">Reconstruction</div>
+      <div class="tag" onclick="toggleDivision(this)">Trauma</div>
+      <div class="tag" onclick="toggleDivision(this)">Commercial</div>
+    </div>
+    <div style="margin-top:16px;">
+      <label>Add custom division</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="custom-division" placeholder="Division name..." style="flex:1;">
+        <button class="btn btn-secondary" style="white-space:nowrap;" onclick="addDivision()">+ Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- GENERATED PROMPT -->
+<div class="card full" style="margin-bottom:16px;">
+  <div class="card-title">Generated Prompt – Ready to Paste into Claude in Chrome</div>
+  <div class="prompt-box" id="prompt-output">Click "Generate Prompt" to build your configured V4.0 automation prompt.</div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="generatePrompt()">⚡ Generate Prompt</button>
+    <button class="btn btn-copy" onclick="copyPrompt()">Copy to Clipboard</button>
+    <span class="copy-feedback" id="copy-feedback">✓ Copied!</span>
+    <button class="btn btn-secondary" onclick="resetDefaults()">Reset to Defaults</button>
+  </div>
+</div>
+<!-- VERSION HISTORY + NOTES -->
+<div class="grid">
+  <div class="card">
+    <div class="card-title">Version History</div>
+    <div class="version-row">
+      <span class="v-badge current">V4.0</span>
+      <span style="font-size:12px;">Configurable office, cap, ratio, phases, divisions</span>
+    </div>
+    <div class="version-row">
+      <span class="v-badge">V3.0</span>
+      <span style="font-size:12px; color:var(--muted);">NED only · Cap 15 · Ratio 0.60 · Fixed</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Run Notes</div>
+    <div style="font-size:12px; color:var(--muted); line-height:1.8;">
+      1. Configure settings above<br>
+      2. Click Generate Prompt<br>
+      3. Copy to clipboard<br>
+      4. Open Claude in Chrome extension<br>
+      5. Paste prompt and run<br>
+      <span style="color:var(--accent); margin-top:8px; display:block;">
+        Future: Save as V4.0 shortcut once stable
+      </span>
+    </div>
+  </div>
+</div>
+<script>
+  let capValue = 15;
+  let ratioValue = 60;
+  function updateCap(val) {
+    capValue = parseInt(val);
+    document.getElementById('cap-display').textContent = val;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  }
+  function setCap(val, btn) {
+    capValue = val;
+    document.getElementById('cap-slider').value = val;
+    document.getElementById('cap-display').textContent = val;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  function updateRatio(val) {
+    ratioValue = parseInt(val);
+    document.getElementById('ratio-display').textContent = val + '%';
+  }
+  function togglePhase(el) {
+    el.classList.toggle('active');
+    el.classList.toggle('inactive');
+  }
+  function toggleDivision(el) {
+    el.classList.toggle('excluded');
+  }
+  function addDivision() {
+    const input = document.getElementById('custom-division');
+    const val = input.value.trim();
+    if (!val) return;
+    const tag = document.createElement('div');
+    tag.className = 'tag excluded';
+    tag.onclick = function() { toggleDivision(this); };
+    tag.textContent = val;
+    document.getElementById('divisions').appendChild(tag);
+    input.value = '';
+  }
+  function getActivePhases() {
+    const phases = [];
+    document.querySelectorAll('.toggle-item.active').forEach(el => {
+      phases.push(el.dataset.phase);
+    });
+    return phases.length === 5 ? 'All' : phases.join(', ');
+  }
+  function getExcludedDivisions() {
+    const divs = [];
+    document.querySelectorAll('.tag.excluded').forEach(el => {
+      divs.push(el.textContent.replace('✕ ', ''));
+    });
+    return divs.length === 0 ? 'None' : divs.join(', ');
+  }
+  function generatePrompt() {
+    const office = document.getElementById('office').value;
+    const cap = capValue;
+    const ratio = (ratioValue / 100).toFixed(2);
+    const phases = getActivePhases();
+    const divisions = getExcludedDivisions();
+    const prompt = `# CLAUDE COMPUTER USE – MITIGATION AUDIT V4.0
+## CAP-AWARE | FIX-BASED LIMIT | REMAINING COUNT ENABLED | CONFIGURABLE
+---
+## ── RUN CONFIGURATION ──────────────────────────────────────────
+OFFICE_TARGET: ${office}
+UPDATE_CAP: ${cap}
+RATIO_THRESHOLD: ${ratio}
+PHASES_TO_RUN: ${phases}
+DIVISIONS_EXCLUDED: ${divisions}
+## ── END CONFIGURATION ───────────────────────────────────────────
+---
+## EXECUTION MODE
+- No clarifying questions.
+- No narration.
+- No reasoning explanation.
+- Log short status lines only.
+- Skip on ambiguity and log error.
+- Deterministic execution only.
+---
+## SCOPE
+Run across PHASES_TO_RUN in order: ${phases}
+Office: Apply filter for ${office}.
+${office === 'All Offices' ? 'Iterate through each office sequentially using a single shared update cap.' : ''}
+Division: Exclude: ${divisions}
+Reapply filters anytime "All Items Selected" appears. Wait 5 seconds after setting filters.
+---
+## JOB EXCLUSIONS
+Skip any job where Job Number contains -CON (Reconstruction jobs).
+Log: Skipped [JobNumber] (CON-excluded)
+Do NOT open, evaluate, or update these jobs under any circumstances.
+---
+## UPDATE CAP LOGIC
+MAX_UPDATES = ${cap}
+An UPDATE is defined as:
+- Invoice Subtotal > 0
+- Ratio >= ${ratio}
+- Date Invoiced was empty
+- Date successfully set
+- Save Dates clicked
+Only then increment: updates_done += 1
+Skips do NOT count toward cap.
+Stop processing immediately when: updates_done == ${cap}
+---
+## STATUS FORMAT (Minimal)
+Running: [Phase] JOB: [JobNumber]
+Updated
+Skipped
+Skipped (CON-excluded)
+AlreadyHadDate
+Error
+No explanations.
+---
+## PROCESS PER PHASE
+1. Set page size = 100
+2. Scroll once
+3. Read all rows in current phase
+For each row:
+- If Job Number contains -CON → skip silently, log Skipped (CON-excluded)
+- Read column: Invoiced Amount
+- If = $0.00 → skip silently
+- If > $0.00 → open job
+---
+## INSIDE JOB
+Step 1 – Validate Invoice
+In Accounting panel: Read Invoice Subtotal. If <= 0: Log Error | Back | Continue
+Step 2 – Check Date Invoiced
+Go to Dates tab.
+Use exact label proximity match: find element where innerText === 'Date Invoiced:', then read its nearest input.
+Do NOT use a generic DateTimePicker scan (will return Date of COS instead).
+If Date Invoiced populated: Log AlreadyHadDate | Back | Continue
+Step 3 – Ratio Gate
+Read Total Estimates.
+If Total Estimates > 0: ratio = InvoiceSubtotal / TotalEstimates
+  If ratio < ${ratio}: Log Skipped | Back | Continue
+If Total Estimates blank or 0: Continue
+Step 4 – Retrieve Invoice Date
+Click Invoice Subtotal (or Invoices link).
+On invoice page: Read Date Invoiced column. Parse valid dates. Select most recent calendar date.
+If no valid date: Log Error | Close tab | Back | Continue
+Close invoice tab.
+Step 5 – Apply Date
+Go to Dates tab.
+Set Date Invoiced = latest invoice date via: $find(pickerId).set_selectedDate(new Date(...))
+Click Save Dates.
+Verify field saved before logging.
+Log Updated
+updates_done += 1
+If updates_done == ${cap}: Stop immediately | Return to phase list
+Back to phase list.
+---
+## AFTER EACH PHASE
+Continue to next phase unless cap reached.
+---
+## REMAINING COUNT LOGIC (CRITICAL SECTION)
+After stopping (either by cap or full scan):
+Return to each phase list (same filters applied).
+For each phase, scan entire visible list.
+Count rows where:
+- Job Number does NOT contain -CON
+- Invoiced Amount > $0.00
+- Job not already in Accounts Receivable phase
+- Date Invoiced empty
+- Ratio >= ${ratio} (must open job to verify ratio)
+Increment: remaining_qualifying += 1
+Do NOT modify any jobs during remaining scan.
+Do NOT apply cap during remaining scan.
+If remaining scan exceeds 10 minutes total runtime:
+Stop counting and mark RemainingCountStatus = Partial.
+---
+## FINAL REPORT FORMAT
+RUN SUMMARY ──────────────────────────────────────────────────────
+Office Target:         ${office}
+Update Cap Used:       ${cap}
+Ratio Threshold Used:  ${ratio}
+Phases Run:            ${phases}
+Divisions Excluded:    ${divisions}
+Updates Completed:     X / ${cap}
+Run Completion Status: [ CompletedFullScan | StoppedAtCap | StoppedAtTimeLimit ]
+Total Remaining Qualifying Jobs: Y
+Remaining Count Status:          [ Complete | Partial (time limited) ]
+Estimated Additional Runs Needed: ceil(Y / ${cap})
+UPDATED JOBS ─────────────────────────────────────────────────────
+Job Number | Phase | Inv Subtotal | Est Total | Ratio | Date Applied
+SKIPPED – BELOW THRESHOLD ────────────────────────────────────────
+Job Number | Ratio
+ALREADY HAD DATE INVOICED ────────────────────────────────────────
+Job Number
+ERRORS ───────────────────────────────────────────────────────────
+Job Number | Short reason
+---
+## EXECUTION RULES
+- Never exceed ${cap} updates.
+- Never process or update any job with -CON in the Job Number.
+- Never narrate reasoning.
+- Never attempt UI recovery loops.
+- Never re-open jobs during remaining scan unless needed for ratio check.
+- Always revalidate filters before scanning.
+- Always use ${ratio} as ratio threshold.
+- Always use ${cap} as update cap.
+---
+## END OF PROMPT`;
+    document.getElementById('prompt-output').textContent = prompt;
+  }
+  function copyPrompt() {
+    const text = document.getElementById('prompt-output').textContent;
+    if (text.startsWith('Click')) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const fb = document.getElementById('copy-feedback');
+      fb.classList.add('show');
+      setTimeout(() => fb.classList.remove('show'), 2000);
+    });
+  }
+  function resetDefaults() {
+    document.getElementById('office').value = 'SERVPRO of Northeast Dallas';
+    setCap(15, document.querySelectorAll('.preset-btn')[0]);
+    document.getElementById('ratio-slider').value = 60;
+    updateRatio(60);
+    document.querySelectorAll('.toggle-item').forEach(el => {
+      el.classList.add('active');
+      el.classList.remove('inactive');
+    });
+    document.querySelectorAll('.tag').forEach(el => {
+      el.classList.remove('excluded');
+    });
+    document.querySelectorAll('.tag')[0].classList.add('excluded');
+    document.querySelectorAll('.tag')[1].classList.add('excluded');
+    document.getElementById('prompt-output').textContent = 'Click "Generate Prompt" to build your configured V4.0 automation prompt.';
+  }
+  // Auto-generate on load
+  generatePrompt();
+</script>
+</body>
+</html>
