@@ -379,7 +379,7 @@
     <div class="header-logo">INVOICE AUDIT</div>
     <div class="header-sub">SERVPRO Automation Control Panel</div>
   </div>
-  <div class="version-badge">V4.1</div>
+  <div class="version-badge">V4.2</div>
 </div>
 <div class="status-bar">
   <div class="status-dot"></div>
@@ -476,10 +476,38 @@
     </div>
   </div>
 </div>
+<!-- ROW 3: Execution Mode -->
+<div class="grid">
+  <div class="card">
+    <div class="card-title">Execution Mode</div>
+    <div class="toggle-group">
+      <div class="toggle-item" id="approval-toggle" onclick="toggleApproval(this)">
+        <div>
+          <span class="toggle-label">Require Approval Before Updates</span>
+          <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+            Scan first, present qualifying jobs for review, then execute only approved jobs.
+          </div>
+        </div>
+        <div class="toggle-switch"></div>
+      </div>
+    </div>
+    <div id="approval-desc" style="margin-top:10px; font-size:11px; color:var(--muted); font-family:'IBM Plex Mono',monospace;">
+      Current: <span style="color:var(--accent);">Autonomous</span> — jobs are updated immediately as they are found.
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Mode Details</div>
+    <div style="font-size:12px; color:var(--muted); line-height:1.8;">
+      <strong style="color:var(--accent);">Autonomous:</strong> Scan → Update → Report<br>
+      <strong style="color:var(--green);">Approval:</strong> Scan → Present List → You Deselect → Execute<br><br>
+      <span style="font-size:11px;">In approval mode, Claude will show all qualifying jobs in a numbered table. All jobs are selected by default. Reply with the numbers to exclude, then Claude updates only the remaining jobs.</span>
+    </div>
+  </div>
+</div>
 <!-- GENERATED PROMPT -->
 <div class="card full" style="margin-bottom:16px;">
   <div class="card-title">Generated Prompt – Ready to Paste into Claude in Chrome</div>
-  <div class="prompt-box" id="prompt-output">Click "Generate Prompt" to build your configured V4.1 automation prompt.</div>
+  <div class="prompt-box" id="prompt-output">Click "Generate Prompt" to build your configured V4.2 automation prompt.</div>
   <div class="btn-row">
     <button class="btn btn-primary" onclick="generatePrompt()">⚡ Generate Prompt</button>
     <button class="btn btn-copy" onclick="copyPrompt()">Copy to Clipboard</button>
@@ -492,8 +520,12 @@
   <div class="card">
     <div class="card-title">Version History</div>
     <div class="version-row">
-      <span class="v-badge current">V4.1</span>
-      <span style="font-size:12px;">Tightened prompt: explicit waits, selectors, error handling, no ambiguity</span>
+      <span class="v-badge current">V4.2</span>
+      <span style="font-size:12px;">Approval mode: scan first, user reviews & deselects, then execute</span>
+    </div>
+    <div class="version-row">
+      <span class="v-badge">V4.1</span>
+      <span style="font-size:12px; color:var(--muted);">Tightened prompt: explicit waits, selectors, error handling</span>
     </div>
     <div class="version-row">
       <span class="v-badge">V4.0</span>
@@ -513,7 +545,7 @@
       4. Open Claude in Chrome extension<br>
       5. Paste prompt and run<br>
       <span style="color:var(--accent); margin-top:8px; display:block;">
-        Future: Save as V4.0 shortcut once stable
+        Tip: Toggle "Require Approval" to review jobs before updating.
       </span>
     </div>
   </div>
@@ -521,6 +553,7 @@
 <script>
   let capValue = 15;
   let ratioValue = 60;
+  let approvalMode = false;
   function updateCap(val) {
     capValue = parseInt(val);
     document.getElementById('cap-display').textContent = val;
@@ -555,6 +588,17 @@
     document.getElementById('divisions').appendChild(tag);
     input.value = '';
   }
+  function toggleApproval(el) {
+    approvalMode = !approvalMode;
+    el.classList.toggle('active');
+    el.classList.toggle('inactive');
+    const desc = document.getElementById('approval-desc');
+    if (approvalMode) {
+      desc.innerHTML = 'Current: <span style="color:var(--green);">Approval</span> — scan first, then you choose which jobs to update.';
+    } else {
+      desc.innerHTML = 'Current: <span style="color:var(--accent);">Autonomous</span> — jobs are updated immediately as they are found.';
+    }
+  }
   function getActivePhases() {
     const phases = [];
     document.querySelectorAll('.toggle-item.active').forEach(el => {
@@ -575,16 +619,100 @@
     const ratio = (ratioValue / 100).toFixed(2);
     const phases = getActivePhases();
     const divisions = getExcludedDivisions();
-    const prompt = `# CLAUDE COMPUTER USE – MITIGATION AUDIT V4.1
-## CAP-AWARE | FIX-BASED LIMIT | REMAINING COUNT ENABLED | CONFIGURABLE
----
-## ── RUN CONFIGURATION ──────────────────────────────────────────
+    const modeLabel = approvalMode ? 'APPROVAL' : 'AUTONOMOUS';
+    const officeScope = office === 'All Offices'
+      ? `Office: Process each office in this order: SERVPRO of Northeast Dallas, SERVPRO Boise, SERVPRO of McCall, SERVPRO of Reno. Use a single shared update cap across all offices. For each office, apply the office filter before scanning phases.`
+      : `Office: Apply filter for ${office}.`;
+    const sharedConfig = `## ── RUN CONFIGURATION ──────────────────────────────────────────
 OFFICE_TARGET: ${office}
 UPDATE_CAP: ${cap}
 RATIO_THRESHOLD: ${ratio}
 PHASES_TO_RUN: ${phases}
 DIVISIONS_EXCLUDED: ${divisions}
-## ── END CONFIGURATION ───────────────────────────────────────────
+EXECUTION_MODE: ${modeLabel}
+## ── END CONFIGURATION ───────────────────────────────────────────`;
+    const sharedScope = `## SCOPE
+Process phases in this exact order: ${phases}
+${officeScope}
+Division: Exclude: ${divisions}
+Before scanning rows in each phase, check the filter dropdowns. If any filter shows "All Items Selected" instead of the configured value, reapply the office and division filters. After setting any filter, wait 5 seconds before proceeding.`;
+    const sharedExclusions = `## JOB EXCLUSIONS
+Skip any job where Job Number contains -CON (Reconstruction jobs).
+Log: Skipped [JobNumber] (CON-excluded)
+Do NOT open, evaluate, or update these jobs under any circumstances.`;
+    const sharedProcessPerPhase = `## PROCESS PER PHASE
+1. Click the page size dropdown and select 100.
+2. Wait 3 seconds for the table to reload.
+3. Scroll to the bottom of the job list table to ensure all rows are rendered.
+4. Wait 2 seconds after scrolling.
+5. Read all rows currently visible in the table. Do NOT paginate to additional pages. Process only the rows on this single page (up to 100).
+For each row, top to bottom:
+- Read the Job Number column. If it contains -CON → log "Skipped [JobNumber] (CON-excluded)" and move to next row.
+- Read the Invoiced Amount column. If = $0.00 → log "Skipped [JobNumber] | Invoiced Amount: $0.00" and move to next row.
+- If Invoiced Amount > $0.00 → click the job row to open it.`;
+    const sharedInsideJobScan = `## INSIDE JOB (SCAN)
+Step 1 – Validate Invoice
+Click the Accounting tab to open the Accounting panel. Read the Invoice Subtotal value.
+If Invoice Subtotal <= 0 or cannot be read: Log "Error [JobNumber] | Invoice Subtotal missing or zero" | Click Back | Continue to next row.
+Step 2 – Check Date Invoiced
+Click the Dates tab.
+Locate the label with exact text "Date Invoiced:" on the page. Read the input field that is the immediate next sibling of that label.
+IMPORTANT: Do NOT scan for all DateTimePicker elements. The first DateTimePicker on the page is "Date of COS", not "Date Invoiced". You must match by the label text "Date Invoiced:" and read the input next to it.
+If Date Invoiced field contains a date value: Log "AlreadyHadDate [JobNumber]" | Click Back | Continue to next row.
+Step 3 – Ratio Gate
+Read the Total Estimates value from the Accounting panel.
+If Total Estimates > 0: Calculate ratio = InvoiceSubtotal / TotalEstimates
+  If ratio < ${ratio}: Log "Skipped [JobNumber] | Ratio: [calculated ratio] below ${ratio}" | Click Back | Continue to next row.
+If Total Estimates is blank or 0: Continue to Step 4 (no ratio gate applied).
+Step 4 – Retrieve Invoice Date
+Click the "Invoices" link in the Accounting panel to open the invoices page.
+On the invoices page: Read the "Date Invoiced" column for every invoice row. Ignore blank or malformed date values. From the remaining valid dates, select the one that is most recent chronologically.
+If no valid date found: Log "Error [JobNumber] | No valid invoice date found" | Close the invoice tab | Click Back | Continue to next row.
+Store the selected date. Close the invoice tab.
+Click Back to return to phase list.`;
+    const sharedApplyDate = `## APPLY DATE (UPDATE STEP)
+For each job being updated:
+1. Navigate to the job from its phase list. Click the job row to open it.
+2. Click the Dates tab.
+3. Locate the Date Invoiced input field (find label "Date Invoiced:", use its next sibling input).
+4. Set the date using the Telerik date picker API: \$find("[picker control ID]").set_selectedDate(new Date("[YYYY-MM-DD]"))
+   If the picker control ID is not known, type the date directly into the input field in MM/DD/YYYY format and press Tab to commit.
+5. Click the "Save Dates" button.
+6. Wait 3 seconds after clicking Save Dates. Re-read the Date Invoiced field. If it now shows the date that was set:
+   Log "Updated [JobNumber] | Ratio: [X.XX] | Date: [YYYY-MM-DD]"
+   updates_done += 1
+   If the field is still blank after saving:
+   Log "Error [JobNumber] | Save failed – Date Invoiced still blank after save"
+7. If updates_done == ${cap}: Stop immediately. Do not process more jobs.
+8. Click Back to return to phase list.`;
+    const sharedFinalReport = `## FINAL REPORT FORMAT
+RUN SUMMARY ──────────────────────────────────────────────────────
+Office Target:         ${office}
+Update Cap Used:       ${cap}
+Ratio Threshold Used:  ${ratio}
+Phases Run:            ${phases}
+Divisions Excluded:    ${divisions}
+Execution Mode:        ${modeLabel}
+Updates Completed:     X / ${cap}
+Run Completion Status: [ CompletedFullScan | StoppedAtCap | StoppedAtTimeLimit ]
+Total Remaining Qualifying Jobs: Y
+Remaining Count Status:          [ Complete | Partial (time limited) ]
+Estimated Additional Runs Needed: ceil(Y / ${cap})
+UPDATED JOBS ─────────────────────────────────────────────────────
+Job Number | Phase | Inv Subtotal | Est Total | Ratio | Date Applied
+SKIPPED – BELOW THRESHOLD ────────────────────────────────────────
+Job Number | Ratio
+ALREADY HAD DATE INVOICED ────────────────────────────────────────
+Job Number
+ERRORS ───────────────────────────────────────────────────────────
+Job Number | Short reason`;
+    let prompt;
+    if (!approvalMode) {
+      // ── AUTONOMOUS MODE ──
+      prompt = `# CLAUDE COMPUTER USE – MITIGATION AUDIT V4.2
+## CAP-AWARE | FIX-BASED LIMIT | REMAINING COUNT ENABLED | AUTONOMOUS MODE
+---
+${sharedConfig}
 ---
 ## EXECUTION MODE
 - Do not ask clarifying questions. Execute all steps as written.
@@ -593,16 +721,9 @@ DIVISIONS_EXCLUDED: ${divisions}
 - If a required field cannot be read after 5 seconds of waiting, log "Error [JobNumber] | Field not found: [FieldName]" and skip the job.
 - If a page fails to load within 10 seconds, log "Error [JobNumber] | Page load timeout" and skip the job.
 ---
-## SCOPE
-Process phases in this exact order: ${phases}
-${office === 'All Offices' ? `Office: Process each office in this order: SERVPRO of Northeast Dallas, SERVPRO Boise, SERVPRO of McCall, SERVPRO of Reno. Use a single shared update cap across all offices. For each office, apply the office filter before scanning phases.` : `Office: Apply filter for ${office}.`}
-Division: Exclude: ${divisions}
-Before scanning rows in each phase, check the filter dropdowns. If any filter shows "All Items Selected" instead of the configured value, reapply the office and division filters. After setting any filter, wait 5 seconds before proceeding.
+${sharedScope}
 ---
-## JOB EXCLUSIONS
-Skip any job where Job Number contains -CON (Reconstruction jobs).
-Log: Skipped [JobNumber] (CON-excluded)
-Do NOT open, evaluate, or update these jobs under any circumstances.
+${sharedExclusions}
 ---
 ## UPDATE CAP LOGIC
 MAX_UPDATES = ${cap}
@@ -626,16 +747,7 @@ Skipped [JobNumber] | Invoiced Amount: $0.00
 AlreadyHadDate [JobNumber]
 Error [JobNumber] | [Short reason]
 ---
-## PROCESS PER PHASE
-1. Click the page size dropdown and select 100.
-2. Wait 3 seconds for the table to reload.
-3. Scroll to the bottom of the job list table to ensure all rows are rendered.
-4. Wait 2 seconds after scrolling.
-5. Read all rows currently visible in the table. Do NOT paginate to additional pages. Process only the rows on this single page (up to 100).
-For each row, top to bottom:
-- Read the Job Number column. If it contains -CON → log "Skipped [JobNumber] (CON-excluded)" and move to next row.
-- Read the Invoiced Amount column. If = $0.00 → log "Skipped [JobNumber] | Invoiced Amount: $0.00" and move to next row.
-- If Invoiced Amount > $0.00 → click the job row to open it.
+${sharedProcessPerPhase}
 ---
 ## INSIDE JOB
 Step 1 – Validate Invoice
@@ -694,26 +806,7 @@ Do NOT modify any jobs during remaining scan. Read only.
 If remaining scan exceeds 10 minutes total elapsed time:
 Stop counting. Set RemainingCountStatus = Partial.
 ---
-## FINAL REPORT FORMAT
-RUN SUMMARY ──────────────────────────────────────────────────────
-Office Target:         ${office}
-Update Cap Used:       ${cap}
-Ratio Threshold Used:  ${ratio}
-Phases Run:            ${phases}
-Divisions Excluded:    ${divisions}
-Updates Completed:     X / ${cap}
-Run Completion Status: [ CompletedFullScan | StoppedAtCap | StoppedAtTimeLimit ]
-Total Remaining Qualifying Jobs: Y
-Remaining Count Status:          [ Complete | Partial (time limited) ]
-Estimated Additional Runs Needed: ceil(Y / ${cap})
-UPDATED JOBS ─────────────────────────────────────────────────────
-Job Number | Phase | Inv Subtotal | Est Total | Ratio | Date Applied
-SKIPPED – BELOW THRESHOLD ────────────────────────────────────────
-Job Number | Ratio
-ALREADY HAD DATE INVOICED ────────────────────────────────────────
-Job Number
-ERRORS ───────────────────────────────────────────────────────────
-Job Number | Short reason
+${sharedFinalReport}
 ---
 ## EXECUTION RULES
 - Never exceed ${cap} updates.
@@ -727,6 +820,120 @@ Job Number | Short reason
 - Always use ${cap} as update cap.
 ---
 ## END OF PROMPT`;
+    } else {
+      // ── APPROVAL MODE ──
+      prompt = `# CLAUDE COMPUTER USE – MITIGATION AUDIT V4.2
+## CAP-AWARE | FIX-BASED LIMIT | APPROVAL MODE | CONFIGURABLE
+---
+${sharedConfig}
+---
+## EXECUTION MODE — APPROVAL (TWO-PHASE)
+This prompt runs in TWO phases:
+  PHASE A: SCAN — Find all qualifying jobs. Do NOT modify anything. Present results to user.
+  PHASE B: EXECUTE — Wait for user approval. Update ONLY the approved jobs.
+
+Do not narrate what you are doing. Do not explain reasoning.
+If a required field cannot be read after 5 seconds, log "Error [JobNumber] | Field not found: [FieldName]" and skip the job.
+If a page fails to load within 10 seconds, log "Error [JobNumber] | Page load timeout" and skip the job.
+---
+${sharedScope}
+---
+${sharedExclusions}
+---
+## UPDATE CAP LOGIC
+MAX_UPDATES = ${cap}
+The cap applies to PHASE B (execution) only. During PHASE A (scan), collect all qualifying jobs regardless of cap.
+If the number of qualifying jobs exceeds the cap, note this in the approval table but still show all of them.
+During PHASE B, stop after ${cap} approved jobs have been updated.
+---
+## ════════════════════════════════════════════════════════════════
+## PHASE A: SCAN (READ-ONLY)
+## ════════════════════════════════════════════════════════════════
+Do NOT modify any data during this phase. Read only.
+---
+## SCAN STATUS FORMAT
+Use ONLY these formats during the scan:
+Scanning: [Phase] JOB: [JobNumber]
+Qualified [JobNumber] | Ratio: [X.XX] | Invoice Date: [YYYY-MM-DD]
+Skipped [JobNumber] | Ratio: [X.XX] below ${ratio}
+Skipped [JobNumber] (CON-excluded)
+Skipped [JobNumber] | Invoiced Amount: $0.00
+AlreadyHadDate [JobNumber]
+Error [JobNumber] | [Short reason]
+---
+${sharedProcessPerPhase}
+---
+${sharedInsideJobScan}
+For each qualifying job (passed all checks), store:
+- Job Number
+- Phase
+- Invoice Subtotal
+- Total Estimates
+- Ratio
+- Invoice Date (most recent from invoices page)
+---
+## AFTER ALL PHASES SCANNED
+Present the APPROVAL TABLE to the user in this exact format:
+---
+QUALIFYING JOBS FOUND: [total count]
+UPDATE CAP: ${cap}${cap < 999 ? `\nNOTE: Only the first ${cap} approved jobs will be updated (cap limit).` : ''}
+
+ #  | ✓ | Job Number   | Phase              | Inv Subtotal | Est Total  | Ratio | Invoice Date
+----|---|--------------|--------------------|--------------|-----------:|-------|-------------
+ 1  | ✓ | [JobNumber]  | [Phase]            | $X,XXX.XX    | $X,XXX.XX  | X.XX  | YYYY-MM-DD
+ 2  | ✓ | [JobNumber]  | [Phase]            | $X,XXX.XX    | $X,XXX.XX  | X.XX  | YYYY-MM-DD
+...
+
+All jobs are SELECTED (✓) by default.
+To exclude jobs from update, reply with the row numbers to DESELECT.
+Examples:
+  "3, 7, 12"    → deselects rows 3, 7, and 12
+  "none"        → keep all selected (update all)
+  "cancel"      → abort, do not update any jobs
+---
+STOP HERE. Wait for user response before continuing.
+Do NOT proceed to Phase B until the user replies.
+---
+## ════════════════════════════════════════════════════════════════
+## PHASE B: EXECUTE (AFTER USER APPROVAL)
+## ════════════════════════════════════════════════════════════════
+After the user replies:
+- If user says "cancel": Output "Run cancelled. No jobs were modified." and stop.
+- If user says "none": Keep all jobs selected. Proceed to update all qualifying jobs.
+- If user provides numbers (e.g. "3, 7, 12"): Remove those rows from the update list. Confirm:
+  "Deselected rows: 3, 7, 12. Proceeding to update [N] jobs."
+- If user says anything else that is ambiguous: Ask one clarifying question: "Please reply with row numbers to exclude, 'none' to update all, or 'cancel' to abort."
+
+Build the final approved job list. Apply the update cap: if more than ${cap} jobs are approved, only process the first ${cap} in table order.
+---
+## EXECUTE STATUS FORMAT
+Use ONLY these formats during execution:
+Updating: [JobNumber] ([X] of [total approved])
+Updated [JobNumber] | Ratio: [X.XX] | Date: [YYYY-MM-DD]
+Error [JobNumber] | [Short reason]
+---
+${sharedApplyDate}
+---
+## AFTER EXECUTION COMPLETE
+${sharedFinalReport}
+Additionally include:
+Jobs Approved by User:   [count]
+Jobs Deselected by User: [count] ([row numbers])
+---
+## EXECUTION RULES
+- Never exceed ${cap} updates.
+- Never process or update any job with -CON in the Job Number.
+- During PHASE A, never modify any data. Read only.
+- During PHASE B, only update jobs that remain selected after user approval.
+- Never output text other than the defined status lines, the approval table, and the final report.
+- If a page does not load within 10 seconds, log Error for that job and continue to the next. Do not retry.
+- If a button click does not produce the expected result within 5 seconds, log Error for that job and continue. Do not retry.
+- Before scanning rows in any phase, verify filters match the configuration. If they do not, reapply them and wait 5 seconds.
+- Always use ${ratio} as ratio threshold.
+- Always use ${cap} as update cap.
+---
+## END OF PROMPT`;
+    }
     document.getElementById('prompt-output').textContent = prompt;
   }
   function copyPrompt() {
@@ -752,7 +959,12 @@ Job Number | Short reason
     });
     document.querySelectorAll('.tag')[0].classList.add('excluded');
     document.querySelectorAll('.tag')[1].classList.add('excluded');
-    document.getElementById('prompt-output').textContent = 'Click "Generate Prompt" to build your configured V4.1 automation prompt.';
+    approvalMode = false;
+    const approvalEl = document.getElementById('approval-toggle');
+    approvalEl.classList.remove('active');
+    approvalEl.classList.remove('inactive');
+    document.getElementById('approval-desc').innerHTML = 'Current: <span style="color:var(--accent);">Autonomous</span> — jobs are updated immediately as they are found.';
+    document.getElementById('prompt-output').textContent = 'Click "Generate Prompt" to build your configured V4.2 automation prompt.';
   }
   // Auto-generate on load
   generatePrompt();
