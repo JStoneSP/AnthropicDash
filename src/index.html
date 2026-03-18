@@ -379,7 +379,7 @@
     <div class="header-logo">INVOICE AUDIT</div>
     <div class="header-sub">SERVPRO Automation Control Panel</div>
   </div>
-  <div class="version-badge">V4.0</div>
+  <div class="version-badge">V4.1</div>
 </div>
 <div class="status-bar">
   <div class="status-dot"></div>
@@ -479,7 +479,7 @@
 <!-- GENERATED PROMPT -->
 <div class="card full" style="margin-bottom:16px;">
   <div class="card-title">Generated Prompt – Ready to Paste into Claude in Chrome</div>
-  <div class="prompt-box" id="prompt-output">Click "Generate Prompt" to build your configured V4.0 automation prompt.</div>
+  <div class="prompt-box" id="prompt-output">Click "Generate Prompt" to build your configured V4.1 automation prompt.</div>
   <div class="btn-row">
     <button class="btn btn-primary" onclick="generatePrompt()">⚡ Generate Prompt</button>
     <button class="btn btn-copy" onclick="copyPrompt()">Copy to Clipboard</button>
@@ -492,8 +492,12 @@
   <div class="card">
     <div class="card-title">Version History</div>
     <div class="version-row">
-      <span class="v-badge current">V4.0</span>
-      <span style="font-size:12px;">Configurable office, cap, ratio, phases, divisions</span>
+      <span class="v-badge current">V4.1</span>
+      <span style="font-size:12px;">Tightened prompt: explicit waits, selectors, error handling, no ambiguity</span>
+    </div>
+    <div class="version-row">
+      <span class="v-badge">V4.0</span>
+      <span style="font-size:12px; color:var(--muted);">Configurable office, cap, ratio, phases, divisions</span>
     </div>
     <div class="version-row">
       <span class="v-badge">V3.0</span>
@@ -571,7 +575,7 @@
     const ratio = (ratioValue / 100).toFixed(2);
     const phases = getActivePhases();
     const divisions = getExcludedDivisions();
-    const prompt = `# CLAUDE COMPUTER USE – MITIGATION AUDIT V4.0
+    const prompt = `# CLAUDE COMPUTER USE – MITIGATION AUDIT V4.1
 ## CAP-AWARE | FIX-BASED LIMIT | REMAINING COUNT ENABLED | CONFIGURABLE
 ---
 ## ── RUN CONFIGURATION ──────────────────────────────────────────
@@ -583,19 +587,17 @@ DIVISIONS_EXCLUDED: ${divisions}
 ## ── END CONFIGURATION ───────────────────────────────────────────
 ---
 ## EXECUTION MODE
-- No clarifying questions.
-- No narration.
-- No reasoning explanation.
-- Log short status lines only.
-- Skip on ambiguity and log error.
-- Deterministic execution only.
+- Do not ask clarifying questions. Execute all steps as written.
+- Do not narrate what you are doing. Do not explain reasoning.
+- Output only the status lines defined in STATUS FORMAT below.
+- If a required field cannot be read after 5 seconds of waiting, log "Error [JobNumber] | Field not found: [FieldName]" and skip the job.
+- If a page fails to load within 10 seconds, log "Error [JobNumber] | Page load timeout" and skip the job.
 ---
 ## SCOPE
-Run across PHASES_TO_RUN in order: ${phases}
-Office: Apply filter for ${office}.
-${office === 'All Offices' ? 'Iterate through each office sequentially using a single shared update cap.' : ''}
+Process phases in this exact order: ${phases}
+${office === 'All Offices' ? `Office: Process each office in this order: SERVPRO of Northeast Dallas, SERVPRO Boise, SERVPRO of McCall, SERVPRO of Reno. Use a single shared update cap across all offices. For each office, apply the office filter before scanning phases.` : `Office: Apply filter for ${office}.`}
 Division: Exclude: ${divisions}
-Reapply filters anytime "All Items Selected" appears. Wait 5 seconds after setting filters.
+Before scanning rows in each phase, check the filter dropdowns. If any filter shows "All Items Selected" instead of the configured value, reapply the office and division filters. After setting any filter, wait 5 seconds before proceeding.
 ---
 ## JOB EXCLUSIONS
 Skip any job where Job Number contains -CON (Reconstruction jobs).
@@ -604,81 +606,93 @@ Do NOT open, evaluate, or update these jobs under any circumstances.
 ---
 ## UPDATE CAP LOGIC
 MAX_UPDATES = ${cap}
-An UPDATE is defined as:
+An UPDATE is counted ONLY when ALL of the following are true:
 - Invoice Subtotal > 0
 - Ratio >= ${ratio}
-- Date Invoiced was empty
-- Date successfully set
-- Save Dates clicked
-Only then increment: updates_done += 1
+- Date Invoiced field was empty before this run
+- Date was successfully written to the field
+- Save Dates button was clicked and the save completed
+Only after all five conditions are confirmed: updates_done += 1
 Skips do NOT count toward cap.
 Stop processing immediately when: updates_done == ${cap}
 ---
-## STATUS FORMAT (Minimal)
+## STATUS FORMAT
+Use ONLY these exact status line formats. No other output.
 Running: [Phase] JOB: [JobNumber]
-Updated
-Skipped
-Skipped (CON-excluded)
-AlreadyHadDate
-Error
-No explanations.
+Updated [JobNumber] | Ratio: [X.XX] | Date: [YYYY-MM-DD]
+Skipped [JobNumber] | Ratio: [X.XX] below ${ratio}
+Skipped [JobNumber] (CON-excluded)
+Skipped [JobNumber] | Invoiced Amount: $0.00
+AlreadyHadDate [JobNumber]
+Error [JobNumber] | [Short reason]
 ---
 ## PROCESS PER PHASE
-1. Set page size = 100
-2. Scroll once
-3. Read all rows in current phase
-For each row:
-- If Job Number contains -CON → skip silently, log Skipped (CON-excluded)
-- Read column: Invoiced Amount
-- If = $0.00 → skip silently
-- If > $0.00 → open job
+1. Click the page size dropdown and select 100.
+2. Wait 3 seconds for the table to reload.
+3. Scroll to the bottom of the job list table to ensure all rows are rendered.
+4. Wait 2 seconds after scrolling.
+5. Read all rows currently visible in the table. Do NOT paginate to additional pages. Process only the rows on this single page (up to 100).
+For each row, top to bottom:
+- Read the Job Number column. If it contains -CON → log "Skipped [JobNumber] (CON-excluded)" and move to next row.
+- Read the Invoiced Amount column. If = $0.00 → log "Skipped [JobNumber] | Invoiced Amount: $0.00" and move to next row.
+- If Invoiced Amount > $0.00 → click the job row to open it.
 ---
 ## INSIDE JOB
 Step 1 – Validate Invoice
-In Accounting panel: Read Invoice Subtotal. If <= 0: Log Error | Back | Continue
+Click the Accounting tab to open the Accounting panel. Read the Invoice Subtotal value.
+If Invoice Subtotal <= 0 or cannot be read: Log "Error [JobNumber] | Invoice Subtotal missing or zero" | Click Back | Continue to next row.
 Step 2 – Check Date Invoiced
-Go to Dates tab.
-Use exact label proximity match: find element where innerText === 'Date Invoiced:', then read its nearest input.
-Do NOT use a generic DateTimePicker scan (will return Date of COS instead).
-If Date Invoiced populated: Log AlreadyHadDate | Back | Continue
+Click the Dates tab.
+Locate the label with exact text "Date Invoiced:" on the page. Read the input field that is the immediate next sibling of that label.
+IMPORTANT: Do NOT scan for all DateTimePicker elements. The first DateTimePicker on the page is "Date of COS", not "Date Invoiced". You must match by the label text "Date Invoiced:" and read the input next to it.
+If Date Invoiced field contains a date value: Log "AlreadyHadDate [JobNumber]" | Click Back | Continue to next row.
 Step 3 – Ratio Gate
-Read Total Estimates.
-If Total Estimates > 0: ratio = InvoiceSubtotal / TotalEstimates
-  If ratio < ${ratio}: Log Skipped | Back | Continue
-If Total Estimates blank or 0: Continue
+Read the Total Estimates value from the Accounting panel.
+If Total Estimates > 0: Calculate ratio = InvoiceSubtotal / TotalEstimates
+  If ratio < ${ratio}: Log "Skipped [JobNumber] | Ratio: [calculated ratio] below ${ratio}" | Click Back | Continue to next row.
+If Total Estimates is blank or 0: Continue to Step 4 (no ratio gate applied).
 Step 4 – Retrieve Invoice Date
-Click Invoice Subtotal (or Invoices link).
-On invoice page: Read Date Invoiced column. Parse valid dates. Select most recent calendar date.
-If no valid date: Log Error | Close tab | Back | Continue
-Close invoice tab.
+Click the "Invoices" link in the Accounting panel to open the invoices page.
+On the invoices page: Read the "Date Invoiced" column for every invoice row. Ignore blank or malformed date values. From the remaining valid dates, select the one that is most recent chronologically.
+If no valid date found: Log "Error [JobNumber] | No valid invoice date found" | Close the invoice tab | Click Back | Continue to next row.
+Store the selected date. Close the invoice tab.
 Step 5 – Apply Date
-Go to Dates tab.
-Set Date Invoiced = latest invoice date via: $find(pickerId).set_selectedDate(new Date(...))
-Click Save Dates.
-Verify field saved before logging.
-Log Updated
-updates_done += 1
-If updates_done == ${cap}: Stop immediately | Return to phase list
-Back to phase list.
+Click the Dates tab.
+Locate the Date Invoiced input field (same method as Step 2: find label "Date Invoiced:", use its next sibling input).
+Set the date using the Telerik date picker API: \$find("[picker control ID]").set_selectedDate(new Date("[YYYY-MM-DD]"))
+If the picker control ID is not known, type the date directly into the input field in MM/DD/YYYY format and press Tab to commit.
+Click the "Save Dates" button.
+Wait 3 seconds after clicking Save Dates. Re-read the Date Invoiced field. If it now shows the date that was set:
+  Log "Updated [JobNumber] | Ratio: [X.XX] | Date: [YYYY-MM-DD]"
+  updates_done += 1
+If the field is still blank after saving:
+  Log "Error [JobNumber] | Save failed – Date Invoiced still blank after save"
+If updates_done == ${cap}: Stop immediately. Do not process more rows. Return to phase list.
+Click Back to return to phase list.
 ---
 ## AFTER EACH PHASE
-Continue to next phase unless cap reached.
+If updates_done < ${cap}: Continue to the next phase in the configured order.
+If updates_done == ${cap}: Skip all remaining phases. Proceed to REMAINING COUNT LOGIC.
 ---
 ## REMAINING COUNT LOGIC (CRITICAL SECTION)
-After stopping (either by cap or full scan):
-Return to each phase list (same filters applied).
-For each phase, scan entire visible list.
-Count rows where:
-- Job Number does NOT contain -CON
-- Invoiced Amount > $0.00
-- Job not already in Accounts Receivable phase
-- Date Invoiced empty
-- Ratio >= ${ratio} (must open job to verify ratio)
-Increment: remaining_qualifying += 1
-Do NOT modify any jobs during remaining scan.
-Do NOT apply cap during remaining scan.
-If remaining scan exceeds 10 minutes total runtime:
-Stop counting and mark RemainingCountStatus = Partial.
+This section runs AFTER all updates are complete (either cap reached or all phases fully scanned).
+Return to the phase list view. Ensure the same office and division filters are still applied.
+For each phase in ${phases}:
+1. Navigate to the phase. Set page size = 100. Wait 3 seconds.
+2. Scroll to the bottom of the table. Wait 2 seconds.
+3. For each visible row:
+   - If Job Number contains -CON → skip, do not count.
+   - If Invoiced Amount = $0.00 → skip, do not count.
+   - If the job was already updated in this run → skip, do not count.
+   - Open the job. Check if Date Invoiced is empty.
+   - If Date Invoiced is populated → close job, do not count.
+   - If Date Invoiced is empty: Check ratio (same logic as Step 3 above).
+     - If ratio >= ${ratio} or Total Estimates is blank/0: remaining_qualifying += 1
+     - If ratio < ${ratio}: do not count.
+   - Close the job. Move to next row.
+Do NOT modify any jobs during remaining scan. Read only.
+If remaining scan exceeds 10 minutes total elapsed time:
+Stop counting. Set RemainingCountStatus = Partial.
 ---
 ## FINAL REPORT FORMAT
 RUN SUMMARY ──────────────────────────────────────────────────────
@@ -704,10 +718,11 @@ Job Number | Short reason
 ## EXECUTION RULES
 - Never exceed ${cap} updates.
 - Never process or update any job with -CON in the Job Number.
-- Never narrate reasoning.
-- Never attempt UI recovery loops.
-- Never re-open jobs during remaining scan unless needed for ratio check.
-- Always revalidate filters before scanning.
+- Never output text other than the defined status lines and the final report.
+- If a page does not load within 10 seconds, log Error for that job and continue to the next row. Do not retry the same page.
+- If a button click does not produce the expected result within 5 seconds, log Error for that job and continue to the next row. Do not retry the same action.
+- Never re-open jobs during remaining scan unless needed to check Date Invoiced and ratio.
+- Before scanning rows in any phase, verify filters match the configuration. If they do not, reapply them and wait 5 seconds.
 - Always use ${ratio} as ratio threshold.
 - Always use ${cap} as update cap.
 ---
@@ -737,7 +752,7 @@ Job Number | Short reason
     });
     document.querySelectorAll('.tag')[0].classList.add('excluded');
     document.querySelectorAll('.tag')[1].classList.add('excluded');
-    document.getElementById('prompt-output').textContent = 'Click "Generate Prompt" to build your configured V4.0 automation prompt.';
+    document.getElementById('prompt-output').textContent = 'Click "Generate Prompt" to build your configured V4.1 automation prompt.';
   }
   // Auto-generate on load
   generatePrompt();
